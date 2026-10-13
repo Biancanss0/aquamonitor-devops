@@ -186,7 +186,7 @@ ENTRYPOINT ["dotnet", "AquaMonitor.API.dll"]
 
 | Recurso | Configuração |
 |---------|-------------|
-| **Serviços** | `api` (ASP.NET Core 8) + `oracle-db` (`gvenzl/oracle-free:23-slim-faststart`) |
+| **Serviços** | `api` (ASP.NET Core 8) + `oracle-db` (`gvenzl/oracle-free:23-slim`) |
 | **Volume** | `oracle-data` → `/opt/oracle/oradata` (dados persistem entre reinícios) |
 | **Redes** | `backend` (*internal*: o banco não tem porta publicada nem acesso à internet) e `frontend` (exposição da API) |
 | **Variáveis** | Lidas do `.env` (local) ou `deploy/.env.<ambiente>` (gerado pelo pipeline); obrigatórias validadas com `${VAR:?mensagem}` |

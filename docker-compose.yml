@@ -14,7 +14,9 @@ services:
 
   # ─── Banco de dados Oracle (o mesmo SGBD das migrations do projeto) ────────
   oracle-db:
-    image: gvenzl/oracle-free:23-slim-faststart
+    # Variante sem "faststart": no 1º start ela cria o banco, a senha e o APP_USER.
+    # (A faststart já traz o banco pronto e IGNORA APP_USER/ORACLE_PASSWORD.)
+    image: gvenzl/oracle-free:23-slim
     environment:
       ORACLE_PASSWORD: ${ORACLE_PASSWORD:?Defina ORACLE_PASSWORD no arquivo .env}
       APP_USER: ${ORACLE_APP_USER:-aquamonitor}
