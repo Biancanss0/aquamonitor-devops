@@ -197,21 +197,29 @@ ENTRYPOINT ["dotnet", "AquaMonitor.API.dll"]
 
 ## 📸 Prints do funcionamento
 
-> Salve os prints em `docs/prints/` com os nomes abaixo — eles aparecem aqui automaticamente.
+As evidências abaixo são **links ao vivo** para a execução real do pipeline (qualquer pessoa pode conferir). Os prints das mesmas telas estão no documento técnico (PDF) e na pasta `docs/prints/` do pacote .zip.
 
-| # | Evidência | Imagem |
-|---|-----------|--------|
-| 1 | Pipeline completo (build → testes → imagem → staging → produção) | ![Pipeline](docs/prints/01-pipeline-completo.png) |
-| 2 | Job de build e testes (18 testes aprovados) | ![Testes](docs/prints/02-build-testes.png) |
-| 3 | Imagem publicada no GHCR | ![Imagem](docs/prints/03-imagem-ghcr.png) |
-| 4 | Aprovação manual do deploy em produção | ![Aprovação](docs/prints/04-aprovacao-producao.png) |
-| 5 | Staging: resumo do deploy + smoke tests | ![Staging](docs/prints/05-staging-smoke-tests.png) |
-| 6 | Produção: resumo do deploy + smoke tests | ![Produção](docs/prints/06-producao-smoke-tests.png) |
-| 7 | Environments `staging` e `production` com deploys | ![Environments](docs/prints/07-environments.png) |
-| 8 | Local: `docker compose ps` com containers *healthy* | ![Compose](docs/prints/08-docker-compose-ps.png) |
-| 9 | Local: Swagger + `/health` | ![Swagger](docs/prints/09-swagger-health.png) |
+| # | Evidência | Link |
+|---|-----------|------|
+| 1 | Pipeline completo com sucesso (build → testes → imagem → staging → produção) — execução #4 | [Actions › run #4](https://github.com/Biancanss0/aquamonitor-devops/actions/runs/38434014029) |
+| 2 | Build e testes: **18/18 testes aprovados** (resumo do job) | [Resumo da execução](https://github.com/Biancanss0/aquamonitor-devops/actions/runs/38434014029) |
+| 3 | Imagem publicada no GHCR com as tags `sha-e6d2ee5`, `staging` e `production` | [Pacote no GHCR](https://github.com/Biancanss0/aquamonitor-devops/pkgs/container/aquamonitor-devops) |
+| 4 | Aprovação manual do deploy em produção (Environment `production` com *Required reviewers*) | [Deployments](https://github.com/Biancanss0/aquamonitor-devops/deployments) |
+| 5 | **Staging**: containers *healthy* + **12/12 smoke tests** | [Resumo › Staging](https://github.com/Biancanss0/aquamonitor-devops/actions/runs/38434014029) |
+| 6 | **Produção**: containers *healthy* + **12/12 smoke tests** | [Resumo › Produção](https://github.com/Biancanss0/aquamonitor-devops/actions/runs/38434014029) |
+| 7 | Histórico de deploys por ambiente | [Deployments](https://github.com/Biancanss0/aquamonitor-devops/deployments) |
+| 8 | Histórico de execuções (#1–#3 falharam e foram corrigidas; #4 passou) | [Actions](https://github.com/Biancanss0/aquamonitor-devops/actions) |
+| 9 | `/health` de staging e produção mostrando **a mesma versão** `e6d2ee5` | Ver abaixo |
 
-🔗 Execução do pipeline: https://github.com/Biancanss0/aquamonitor-devops/actions
+Resposta do `/health` registrada pelo pipeline em cada ambiente:
+
+```json
+// staging  (http://localhost:8081/health)
+{"status":"Healthy","ambiente":"Staging","versao":"e6d2ee5","checks":[{"nome":"oracle-db","status":"Healthy","descricao":"Banco de dados acessível"}]}
+
+// produção (http://localhost:8080/health)
+{"status":"Healthy","ambiente":"Production","versao":"e6d2ee5","checks":[{"nome":"oracle-db","status":"Healthy","descricao":"Banco de dados acessível"}]}
+```
 
 ---
 
