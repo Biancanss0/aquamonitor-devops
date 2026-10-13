@@ -13,8 +13,8 @@ Nesta entrega o projeto ganhou um ciclo de vida DevOps completo:
 
 | Integrantes | RM |
 |-------------|----|
-| _Nome completo_ | _RM00000_ |
-| _Nome completo_ | _RM00000_ |
+| Bianca Nogueira Sousa | RM561288 |
+| Leonardo José Nogueira dos Santos Sousa | RM561637 |
 
 > 🔗 Repositório: `https://github.com/Biancanss0/aquamonitor-devops`
 
