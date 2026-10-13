@@ -8,6 +8,11 @@ namespace AquaMonitor.Tests;
 
 public class CustomWebApplicationFactory : WebApplicationFactory<Program>
 {
+    // Cada classe de teste (fixture) recebe um banco InMemory próprio.
+    // O xUnit executa as classes em paralelo; com um nome fixo, duas fixtures
+    // tentavam semear o mesmo Sensor Id = 1 ao mesmo tempo ("same key has already been added").
+    private readonly string _dbName = $"AquaMonitorTestDb_{Guid.NewGuid()}";
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.ConfigureServices(services =>
@@ -21,7 +26,7 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
 
             // Adiciona InMemory para testes
             services.AddDbContext<AppDbContext>(options =>
-                options.UseInMemoryDatabase("AquaMonitorTestDb"));
+                options.UseInMemoryDatabase(_dbName));
 
             // Garante que o banco é criado
             var sp = services.BuildServiceProvider();
