@@ -1,0 +1,17 @@
+# Nada disso é necessário dentro da imagem — deixar fora acelera o build
+# e evita vazar arquivos sensíveis (.env) para a imagem.
+**/bin/
+**/obj/
+**/TestResults/
+.git/
+.github/
+.vs/
+.vscode/
+docs/
+evidencias/
+scripts/
+deploy/
+*.md
+.env
+.env.*
+docker-compose*.yml

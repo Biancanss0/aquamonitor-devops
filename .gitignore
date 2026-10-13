@@ -1,0 +1,13 @@
+# Build .NET
+bin/
+obj/
+TestResults/
+*.user
+.vs/
+
+# Segredos — nunca versionar
+.env
+deploy/.env.*
+
+# Saída local dos smoke tests (as evidências oficiais ficam nos artifacts do GitHub)
+evidencias/local-*

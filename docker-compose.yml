@@ -1,0 +1,66 @@
+# =============================================================================
+#  AquaMonitor — orquestração local / staging / produção
+#
+#  Local:      docker compose up -d --build
+#  Staging:    ./scripts/deploy.sh staging      (usa deploy/.env.staging)
+#  Produção:   ./scripts/deploy.sh production   (usa deploy/.env.production)
+#
+#  Cada ambiente roda com um "project name" diferente (-p), então containers,
+#  rede e volume de staging NUNCA se misturam com os de produção.
+# =============================================================================
+name: aquamonitor
+
+services:
+
+  # ─── Banco de dados Oracle (o mesmo SGBD das migrations do projeto) ────────
+  oracle-db:
+    image: gvenzl/oracle-free:23-slim-faststart
+    environment:
+      ORACLE_PASSWORD: ${ORACLE_PASSWORD:?Defina ORACLE_PASSWORD no arquivo .env}
+      APP_USER: ${ORACLE_APP_USER:-aquamonitor}
+      APP_USER_PASSWORD: ${ORACLE_APP_PASSWORD:?Defina ORACLE_APP_PASSWORD no arquivo .env}
+    volumes:
+      - oracle-data:/opt/oracle/oradata        # dados persistem entre restarts
+    networks:
+      - backend                                # NÃO exposto para fora
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    restart: unless-stopped
+
+  # ─── API ASP.NET Core 8 ────────────────────────────────────────────────────
+  api:
+    image: ${API_IMAGE:-aquamonitor-api:local}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP_VERSION: ${APP_VERSION:-local}
+    depends_on:
+      oracle-db:
+        condition: service_healthy             # só sobe com o banco pronto
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      APP_VERSION: ${APP_VERSION:-local}
+      # "__" vira ":" na configuração do .NET → ConnectionStrings:OracleConnection
+      ConnectionStrings__OracleConnection: "User Id=${ORACLE_APP_USER:-aquamonitor};Password=${ORACLE_APP_PASSWORD};Data Source=oracle-db:1521/FREEPDB1;"
+      Jwt__Key: ${JWT_KEY:?Defina JWT_KEY no arquivo .env (mínimo 32 caracteres)}
+      Jwt__Issuer: AquaMonitor.API
+      Jwt__Audience: AquaMonitor.Client
+    ports:
+      - "${API_PORT:-8080}:8080"
+    networks:
+      - backend                                # fala com o banco
+      - frontend                               # recebe tráfego externo
+    restart: unless-stopped
+
+volumes:
+  oracle-data:        # volume nomeado: sobrevive a "docker compose down" (só some com -v)
+
+networks:
+  backend:
+    internal: true    # rede isolada: o Oracle não tem acesso à internet nem porta publicada
+  frontend:

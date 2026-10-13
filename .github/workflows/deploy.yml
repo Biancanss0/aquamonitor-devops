@@ -1,0 +1,137 @@
+# =============================================================================
+#  Workflow reutilizável de deploy — chamado pelo ci-cd.yml para staging e produção.
+#  Usar o MESMO workflow nos dois ambientes garante que produção recebe exatamente
+#  o mesmo processo (e a mesma imagem) que já foi validado em staging.
+# =============================================================================
+name: Deploy (reutilizável)
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: "Nome do GitHub Environment (staging | production)"
+        required: true
+        type: string
+      aspnet-environment:
+        description: "Valor de ASPNETCORE_ENVIRONMENT (Staging | Production)"
+        required: true
+        type: string
+      api-port:
+        description: "Porta publicada da API no host"
+        required: true
+        type: number
+      image:
+        description: "Imagem no registry (sem tag)"
+        required: true
+        type: string
+      tag:
+        description: "Tag imutável da imagem (sha-xxxxxxx)"
+        required: true
+        type: string
+
+jobs:
+  deploy:
+    name: Deploy ${{ inputs.environment }}
+    # Padrão: runner do GitHub. Para um servidor próprio, registre um self-hosted
+    # runner e crie a variável de repositório DEPLOY_RUNNER=self-hosted.
+    runs-on: ${{ vars.DEPLOY_RUNNER || 'ubuntu-latest' }}
+    # O GitHub Environment guarda os secrets de cada ambiente e, em "production",
+    # pode exigir aprovação manual (Required reviewers) antes de este job rodar.
+    environment:
+      name: ${{ inputs.environment }}
+    concurrency:
+      group: deploy-${{ inputs.environment }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: write
+    env:
+      AMBIENTE: ${{ inputs.environment }}
+      ENV_FILE: deploy/.env.${{ inputs.environment }}
+      EVIDENCIAS: evidencias/${{ inputs.environment }}
+      PROJETO: aquamonitor-${{ inputs.environment }}
+    steps:
+      - name: Checkout do código (docker-compose.yml + scripts)
+        uses: actions/checkout@v4
+
+      - name: Login no GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Gerar arquivo de ambiente (.env) a partir dos Secrets
+        env:
+          SECRET_ORACLE_PASSWORD: ${{ secrets.ORACLE_PASSWORD }}
+          SECRET_ORACLE_APP_PASSWORD: ${{ secrets.ORACLE_APP_PASSWORD }}
+          SECRET_JWT_KEY: ${{ secrets.JWT_KEY }}
+        run: |
+          # Se o secret não existir no Environment, gera um valor aleatório forte.
+          gerar() { echo "Am$(openssl rand -hex 16)"; }
+          ORACLE_PASSWORD="${SECRET_ORACLE_PASSWORD:-$(gerar)}"
+          ORACLE_APP_PASSWORD="${SECRET_ORACLE_APP_PASSWORD:-$(gerar)}"
+          JWT_KEY="${SECRET_JWT_KEY:-$(openssl rand -hex 32)}"
+          # Garante que nenhum desses valores apareça nos logs
+          for valor in "$ORACLE_PASSWORD" "$ORACLE_APP_PASSWORD" "$JWT_KEY"; do
+            echo "::add-mask::$valor"
+          done
+          mkdir -p deploy
+          {
+            echo "ASPNETCORE_ENVIRONMENT=${{ inputs.aspnet-environment }}"
+            echo "API_PORT=${{ inputs.api-port }}"
+            echo "API_IMAGE=${{ inputs.image }}:${{ inputs.tag }}"
+            echo "APP_VERSION=${GITHUB_SHA::7}"
+            echo "ORACLE_APP_USER=aquamonitor"
+            echo "ORACLE_PASSWORD=$ORACLE_PASSWORD"
+            echo "ORACLE_APP_PASSWORD=$ORACLE_APP_PASSWORD"
+            echo "JWT_KEY=$JWT_KEY"
+          } > "$ENV_FILE"
+          echo "Arquivo $ENV_FILE gerado (valores sensíveis mascarados)."
+
+      - name: Deploy com Docker Compose
+        run: bash scripts/deploy.sh "$AMBIENTE"
+
+      - name: Smoke tests pós-deploy
+        run: bash scripts/smoke-test.sh "http://localhost:${{ inputs.api-port }}" "$EVIDENCIAS" "$AMBIENTE"
+
+      - name: Promover imagem (tag :${{ inputs.environment }})
+        run: |
+          docker tag  "${{ inputs.image }}:${{ inputs.tag }}" "${{ inputs.image }}:${{ inputs.environment }}"
+          docker push "${{ inputs.image }}:${{ inputs.environment }}"
+
+      - name: Coletar evidências do ambiente
+        if: always()
+        run: |
+          mkdir -p "$EVIDENCIAS"
+          COMPOSE=(docker compose -p "$PROJETO" --env-file "$ENV_FILE" -f docker-compose.yml)
+          "${COMPOSE[@]}" ps                             > "$EVIDENCIAS/docker-compose-ps.txt"   || true
+          "${COMPOSE[@]}" logs --no-color api            > "$EVIDENCIAS/api.log"                 || true
+          "${COMPOSE[@]}" logs --no-color --tail=200 oracle-db > "$EVIDENCIAS/oracle-db.log"      || true
+          docker network ls --filter "name=$PROJETO"     > "$EVIDENCIAS/redes.txt"               || true
+          docker volume  ls --filter "name=$PROJETO"     > "$EVIDENCIAS/volumes.txt"             || true
+          {
+            echo "## 📦 Ambiente \`$AMBIENTE\`"
+            echo
+            echo "| Item | Valor |"
+            echo "|------|-------|"
+            echo "| ASPNETCORE_ENVIRONMENT | \`${{ inputs.aspnet-environment }}\` |"
+            echo "| Imagem | \`${{ inputs.image }}:${{ inputs.tag }}\` |"
+            echo "| Promovida para | \`${{ inputs.image }}:${{ inputs.environment }}\` |"
+            echo "| Porta | \`${{ inputs.api-port }}\` |"
+            echo "| Runner | \`${{ runner.name }}\` |"
+            echo
+            echo "**Containers (docker compose ps):**"
+            echo '```'
+            cat "$EVIDENCIAS/docker-compose-ps.txt"
+            echo '```'
+            [[ -f "$EVIDENCIAS/resumo.md" ]] && cat "$EVIDENCIAS/resumo.md"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publicar evidências (artifact)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evidencias-${{ inputs.environment }}
+          path: ${{ env.EVIDENCIAS }}
+          retention-days: 30

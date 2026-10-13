@@ -1,0 +1,179 @@
+# =============================================================================
+#  CI/CD — AquaMonitor (Cidades ESG Inteligentes · Tema 7: Água)
+#
+#  Fluxo:
+#   push/PR ──► 🔨 Build ──► 🧪 Testes ──► 🐳 Imagem Docker ──► 🚀 Staging ──► 🏭 Produção
+#                                          (push no GHCR)      (automático)   (só branch main
+#                                                                               + aprovação manual)
+#
+#   • pull_request  → só CI (build + testes + build da imagem, sem push/deploy)
+#   • push develop  → CI + deploy em STAGING
+#   • push main     → CI + deploy em STAGING + deploy em PRODUÇÃO
+# =============================================================================
+name: CI/CD AquaMonitor
+
+on:
+  push:
+    branches: [main, develop]
+    paths-ignore: ["**.md", "docs/**"]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+# Duas execuções no mesmo branch entram em fila (nunca interrompemos um deploy no meio).
+concurrency:
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_VERSION: "8.0.x"
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  # ───────────────────────────────────────────────────────────────────────────
+  build-test:
+    name: 🔨 Build & 🧪 Testes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Instalar .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Cache de pacotes NuGet
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Restore
+        run: dotnet restore AquaMonitor.sln
+
+      - name: Build (Release)
+        run: dotnet build AquaMonitor.sln -c Release --no-restore
+
+      - name: Testes automatizados (xUnit)
+        run: >
+          dotnet test AquaMonitor.sln -c Release --no-build
+          --logger "trx;LogFileName=test-results.trx"
+          --logger "console;verbosity=normal"
+          --results-directory TestResults
+          --collect:"XPlat Code Coverage"
+
+      - name: Resumo dos testes
+        if: always()
+        run: python3 scripts/test-summary.py TestResults >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publicar resultados dos testes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resultados-testes
+          path: TestResults
+          retention-days: 30
+
+  # ───────────────────────────────────────────────────────────────────────────
+  docker:
+    name: 🐳 Build & Push da imagem
+    needs: build-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.vars.outputs.image }}
+      tag: ${{ steps.vars.outputs.tag }}
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Definir nome e tag da imagem
+        id: vars
+        run: |
+          {
+            echo "image=ghcr.io/${GITHUB_REPOSITORY,,}"
+            echo "tag=sha-${GITHUB_SHA::7}"
+            echo "version=${GITHUB_SHA::7}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Configurar Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login no GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build (e push) da imagem
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: ${{ github.event_name != 'pull_request' }}
+          build-args: APP_VERSION=${{ steps.vars.outputs.version }}
+          tags: |
+            ${{ steps.vars.outputs.image }}:${{ steps.vars.outputs.tag }}
+            ${{ steps.vars.outputs.image }}:${{ github.ref_name == 'main' && 'main' || 'develop' }}
+          labels: |
+            org.opencontainers.image.title=AquaMonitor API
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Resumo da imagem
+        run: |
+          {
+            echo "## 🐳 Imagem Docker"
+            echo
+            echo "| Item | Valor |"
+            echo "|------|-------|"
+            echo "| Imagem | \`${{ steps.vars.outputs.image }}\` |"
+            echo "| Tag imutável | \`${{ steps.vars.outputs.tag }}\` |"
+            echo "| Versão (APP_VERSION) | \`${{ steps.vars.outputs.version }}\` |"
+            echo "| Publicada no GHCR | ${{ github.event_name != 'pull_request' && '✅ sim' || '➖ não (pull request)' }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ───────────────────────────────────────────────────────────────────────────
+  deploy-staging:
+    name: 🚀 Staging
+    needs: docker
+    if: github.event_name != 'pull_request'
+    uses: ./.github/workflows/deploy.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      environment: staging
+      aspnet-environment: Staging
+      api-port: 8081
+      image: ${{ needs.docker.outputs.image }}
+      tag: ${{ needs.docker.outputs.tag }}
+    secrets: inherit
+
+  # ───────────────────────────────────────────────────────────────────────────
+  deploy-production:
+    name: 🏭 Produção
+    needs: [docker, deploy-staging]
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/deploy.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      environment: production
+      aspnet-environment: Production
+      api-port: 8080
+      image: ${{ needs.docker.outputs.image }}
+      tag: ${{ needs.docker.outputs.tag }}
+    secrets: inherit

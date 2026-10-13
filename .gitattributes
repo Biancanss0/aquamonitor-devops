@@ -1,0 +1,4 @@
+# Scripts shell sempre com quebra de linha LF (evita erro "\r: command not found"
+# quando o repositório é clonado no Windows).
+*.sh   text eol=lf
+*.yml  text eol=lf
