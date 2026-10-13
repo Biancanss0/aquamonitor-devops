@@ -59,6 +59,10 @@ until curl -fsS "http://localhost:$API_PORT/health" >/dev/null 2>&1; do
     echo "❌ Timeout: a API não ficou saudável. Últimos logs:"
     "${COMPOSE[@]}" ps
     "${COMPOSE[@]}" logs --tail=80
+    echo "🔎 Diagnóstico: login do usuário da aplicação direto no Oracle (sqlplus):"
+    # shellcheck disable=SC2016
+    "${COMPOSE[@]}" exec -T oracle-db bash -c \
+      'echo "select user from dual;" | sqlplus -s -L "$APP_USER/$APP_USER_PASSWORD@localhost:1521/FREEPDB1"' || true
     exit 1
   fi
   sleep 5

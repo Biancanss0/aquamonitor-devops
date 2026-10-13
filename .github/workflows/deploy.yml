@@ -125,7 +125,7 @@ jobs:
             echo '```'
             cat "$EVIDENCIAS/docker-compose-ps.txt"
             echo '```'
-            [[ -f "$EVIDENCIAS/resumo.md" ]] && cat "$EVIDENCIAS/resumo.md"
+            if [[ -f "$EVIDENCIAS/resumo.md" ]]; then cat "$EVIDENCIAS/resumo.md"; fi
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Publicar evidências (artifact)
