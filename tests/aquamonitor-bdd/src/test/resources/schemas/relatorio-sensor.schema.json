@@ -1,0 +1,86 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "RelatorioSensorViewModel",
+  "description": "Relat\u00f3rio de impacto h\u00eddrico de um sensor (GET /api/Relatorios/sensor/{id}).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "SensorId",
+    "SensorNome",
+    "Localizacao",
+    "Tipo",
+    "LimiteConsumo",
+    "ConsumoTotal",
+    "ConsumoMedio",
+    "ConsumoMaximo",
+    "TotalLeituras",
+    "TotalAlertas",
+    "AlertasNaoResolvidos",
+    "PercentualDoLimite",
+    "StatusConsumo"
+  ],
+  "properties": {
+    "SensorId": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "SensorNome": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "Localizacao": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "Tipo": {
+      "type": "string",
+      "enum": [
+        "Residencial",
+        "Comercial",
+        "Industrial"
+      ]
+    },
+    "LimiteConsumo": {
+      "type": "number",
+      "minimum": 0
+    },
+    "ConsumoTotal": {
+      "type": "number",
+      "minimum": 0
+    },
+    "ConsumoMedio": {
+      "type": "number",
+      "minimum": 0
+    },
+    "ConsumoMaximo": {
+      "type": "number",
+      "minimum": 0
+    },
+    "TotalLeituras": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "TotalAlertas": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "AlertasNaoResolvidos": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "PercentualDoLimite": {
+      "type": "number",
+      "minimum": 0
+    },
+    "StatusConsumo": {
+      "type": "string",
+      "enum": [
+        "Normal",
+        "Aten\u00e7\u00e3o",
+        "Critico"
+      ]
+    }
+  }
+}

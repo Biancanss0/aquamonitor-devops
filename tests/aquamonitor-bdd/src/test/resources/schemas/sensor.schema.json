@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "SensorResponseViewModel",
+  "description": "Sensor de consumo de \u00e1gua (GET/POST/PUT /api/Sensores).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "Id",
+    "Nome",
+    "Localizacao",
+    "Tipo",
+    "LimiteConsumo",
+    "Ativo",
+    "CriadoEm"
+  ],
+  "properties": {
+    "Id": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "Nome": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "Localizacao": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "Tipo": {
+      "type": "string",
+      "enum": [
+        "Residencial",
+        "Comercial",
+        "Industrial"
+      ]
+    },
+    "LimiteConsumo": {
+      "type": "number",
+      "minimum": 0,
+      "exclusiveMinimum": true
+    },
+    "Ativo": {
+      "type": "boolean"
+    },
+    "CriadoEm": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?(Z|[+-]\\d{2}:\\d{2})?$"
+    }
+  }
+}

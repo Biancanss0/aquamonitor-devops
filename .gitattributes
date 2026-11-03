@@ -2,3 +2,4 @@
 # quando o repositório é clonado no Windows).
 *.sh   text eol=lf
 *.yml  text eol=lf
+*.feature text eol=lf

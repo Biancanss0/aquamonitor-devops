@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "LeituraResponseViewModel",
+  "description": "Leitura de consumo (POST /api/Leituras e GET /api/Leituras/{id}).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "Id",
+    "SensorId",
+    "SensorNome",
+    "ConsumoLitros",
+    "PressaoBar",
+    "TemperaturaCelsius",
+    "VazamentoDetectado",
+    "RegistradoEm"
+  ],
+  "properties": {
+    "Id": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "SensorId": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "SensorNome": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "ConsumoLitros": {
+      "type": "number",
+      "minimum": 0,
+      "exclusiveMinimum": true
+    },
+    "PressaoBar": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 100
+    },
+    "TemperaturaCelsius": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": -50,
+      "maximum": 150
+    },
+    "VazamentoDetectado": {
+      "type": "boolean"
+    },
+    "RegistradoEm": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?(Z|[+-]\\d{2}:\\d{2})?$"
+    }
+  }
+}

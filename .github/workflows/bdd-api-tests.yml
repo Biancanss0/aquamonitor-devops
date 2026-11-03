@@ -1,0 +1,138 @@
+# =============================================================================
+#  Testes BDD de API — AquaMonitor (Cucumber + RestAssured + JSON Schema)
+#
+#   🐳 sobe API + Oracle ──► ☕ compila os testes ──► 👤 prepara admin
+#        ──► 🥒 executa os cenários Gherkin ──► 📊 resumo + relatórios
+#
+#  Dispara em push/PR que mexa na API ou nos testes, e manualmente pela aba
+#  Actions ("Run workflow"), com filtro opcional de tags do Cucumber.
+# =============================================================================
+name: Testes BDD de API
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "Dockerfile"
+      - "docker-compose.yml"
+      - ".github/workflows/bdd-api-tests.yml"
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: 'Filtro de tags do Cucumber (ex.: @sensores ou "not @admin"). Vazio = todos os cenários'
+        required: false
+        default: ""
+
+concurrency:
+  group: bdd-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  bdd:
+    name: 🥒 BDD · API · Contrato
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      API_URL: http://localhost:8080
+      ADMIN_EMAIL: admin.bdd@aquamonitor.dev
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Gerar .env com segredos descartáveis
+        # Senhas e chave JWT novas a cada execução: nada sensível fica no repositório.
+        run: |
+          ADMIN_SENHA="Adm$(openssl rand -hex 8)"
+          echo "::add-mask::$ADMIN_SENHA"
+          echo "ADMIN_SENHA=$ADMIN_SENHA" >> "$GITHUB_ENV"
+          {
+            echo "ASPNETCORE_ENVIRONMENT=Development"
+            echo "API_PORT=8080"
+            echo "API_IMAGE=aquamonitor-api:bdd"
+            echo "APP_VERSION=${GITHUB_SHA::7}"
+            echo "ORACLE_PASSWORD=Sys$(openssl rand -hex 8)"
+            echo "ORACLE_APP_USER=aquamonitor"
+            echo "ORACLE_APP_PASSWORD=App$(openssl rand -hex 8)"
+            echo "JWT_KEY=$(openssl rand -hex 32)"
+          } > .env
+
+      - name: Subir API + Oracle (docker compose)
+        run: docker compose up -d --build
+
+      - name: Instalar Java 17 (Temurin) com cache do Maven
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+          cache-dependency-path: tests/aquamonitor-bdd/pom.xml
+
+      - name: Compilar os testes (enquanto o Oracle inicializa)
+        run: mvn -B -q -f tests/aquamonitor-bdd/pom.xml test-compile
+
+      - name: Aguardar a API ficar saudável
+        run: |
+          for _ in $(seq 1 84); do
+            if curl -fsS "$API_URL/health"; then echo; echo "✅ API saudável"; exit 0; fi
+            sleep 5
+          done
+          echo "❌ Timeout aguardando a API"; docker compose ps; docker compose logs --tail=120; exit 1
+
+      - name: Preparar usuário administrador (cenários @admin)
+        run: bash tests/aquamonitor-bdd/scripts/criar-admin.sh
+
+      - name: Executar cenários BDD (Cucumber)
+        id: bdd
+        env:
+          TAGS: ${{ github.event.inputs.tags }}   # via env (evita injeção de comando no shell)
+        run: |
+          ARGS=()
+          [[ -n "$TAGS" ]] && ARGS+=("-Dcucumber.filter.tags=$TAGS")
+          mvn -B -f tests/aquamonitor-bdd/pom.xml test \
+            -Dapi.baseUrl="$API_URL" \
+            -Dadmin.email="$ADMIN_EMAIL" -Dadmin.senha="$ADMIN_SENHA" \
+            ${ARGS[@]+"${ARGS[@]}"}
+
+      - name: Validar a imagem Docker dos testes (executa @saude no container)
+        if: always() && steps.bdd.outcome != 'skipped'
+        run: |
+          docker build -t aquamonitor-bdd-tests tests/aquamonitor-bdd
+          mkdir -p /tmp/bdd-docker && chmod 777 /tmp/bdd-docker
+          docker run --rm --network aquamonitor_frontend \
+            -e API_BASE_URL=http://api:8080 \
+            -v /tmp/bdd-docker:/tests/target \
+            aquamonitor-bdd-tests -Dcucumber.filter.tags=@saude
+
+      - name: Resumo dos testes
+        if: always()
+        run: |
+          RELATORIO=tests/aquamonitor-bdd/target/cucumber-reports/cucumber.json
+          if [[ -f "$RELATORIO" ]]; then
+            python3 tests/aquamonitor-bdd/scripts/resumo-cucumber.py "$RELATORIO" \
+              | tee tests/aquamonitor-bdd/target/cucumber-reports/resumo.md >> "$GITHUB_STEP_SUMMARY" || true
+          else
+            echo "⚠️ Relatório do Cucumber não foi gerado." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          docker compose logs --no-color api > tests/aquamonitor-bdd/target/logs-api.txt 2>&1 || true
+
+      - name: Publicar relatórios (HTML, JSON, JUnit XML e logs)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorio-bdd-cucumber
+          path: |
+            tests/aquamonitor-bdd/target/cucumber-reports
+            tests/aquamonitor-bdd/target/surefire-reports
+            tests/aquamonitor-bdd/target/logs-api.txt
+          retention-days: 30
+
+      - name: Derrubar o ambiente
+        if: always()
+        run: docker compose down -v

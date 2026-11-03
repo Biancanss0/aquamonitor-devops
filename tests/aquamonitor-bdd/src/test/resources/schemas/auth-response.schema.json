@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "AuthResponseViewModel",
+  "description": "Resposta de POST /api/Auth/registrar (201) e POST /api/Auth/login (200).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "Token",
+    "Nome",
+    "Email",
+    "Perfil",
+    "Expiracao"
+  ],
+  "properties": {
+    "Token": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+    },
+    "Nome": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "Email": {
+      "type": "string",
+      "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"
+    },
+    "Perfil": {
+      "type": "string",
+      "enum": [
+        "Operador",
+        "Admin"
+      ]
+    },
+    "Expiracao": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?(Z|[+-]\\d{2}:\\d{2})?$"
+    }
+  }
+}

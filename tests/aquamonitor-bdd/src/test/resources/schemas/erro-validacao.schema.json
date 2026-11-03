@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "ValidationProblemDetails",
+  "description": "Erro de valida\u00e7\u00e3o autom\u00e1tico do ASP.NET Core ([ApiController]) \u2014 HTTP 400.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "title",
+    "status",
+    "errors"
+  ],
+  "properties": {
+    "type": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "integer",
+      "enum": [
+        400
+      ]
+    },
+    "errors": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "traceId": {
+      "type": "string"
+    }
+  }
+}

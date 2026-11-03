@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "Erro de neg\u00f3cio",
+  "description": "Erro padr\u00e3o da API AquaMonitor: { \"mensagem\": \"...\" } (400, 401, 404).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "mensagem"
+  ],
+  "properties": {
+    "mensagem": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

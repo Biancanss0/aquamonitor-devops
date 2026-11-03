@@ -11,3 +11,7 @@ deploy/.env.*
 
 # Saída local dos smoke tests (as evidências oficiais ficam nos artifacts do GitHub)
 evidencias/local-*
+
+# Saída dos testes BDD (Maven/Cucumber) — os relatórios oficiais ficam nos artifacts do GitHub
+tests/aquamonitor-bdd/target/
+__pycache__/

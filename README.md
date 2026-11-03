@@ -195,6 +195,18 @@ ENTRYPOINT ["dotnet", "AquaMonitor.API.dll"]
 
 ---
 
+## 🥒 Testes automatizados BDD (Cucumber + RestAssured + JSON Schema)
+
+A pasta [`tests/aquamonitor-bdd`](tests/aquamonitor-bdd) contém a suíte de **testes de API com BDD**: 58 cenários em Gherkin (português) cobrindo **todos os 19 endpoints**, com validação de **status code**, **corpo JSON** e **contrato (JSON Schema)**, incluindo cenários positivos e negativos ligados aos pilares ESG.
+
+```bash
+bash tests/aquamonitor-bdd/scripts/run-bdd.sh      # sobe API + Oracle e executa toda a suíte
+```
+
+No GitHub Actions o workflow **Testes BDD de API** (`.github/workflows/bdd-api-tests.yml`) executa a suíte a cada push e publica o relatório. Detalhes, opções de execução e matriz de cobertura no [README dos testes](tests/aquamonitor-bdd/README.md).
+
+---
+
 ## 📸 Prints do funcionamento
 
 As evidências abaixo são **links ao vivo** para a execução real do pipeline (qualquer pessoa pode conferir). Os prints das mesmas telas estão no documento técnico (PDF) e na pasta `docs/prints/` do pacote .zip.

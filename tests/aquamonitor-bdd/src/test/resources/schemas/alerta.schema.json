@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "AlertaResponseViewModel",
+  "description": "Alerta gerado automaticamente (GET /api/Alertas/{id}, PATCH /api/Alertas/{id}/resolver).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "Id",
+    "SensorId",
+    "SensorNome",
+    "Tipo",
+    "Descricao",
+    "Nivel",
+    "Resolvido",
+    "CriadoEm",
+    "ResolvidoEm"
+  ],
+  "properties": {
+    "Id": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "SensorId": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "SensorNome": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "Tipo": {
+      "type": "string",
+      "enum": [
+        "Vazamento",
+        "ConsumoExcessivo",
+        "PressaoCritica"
+      ]
+    },
+    "Descricao": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500
+    },
+    "Nivel": {
+      "type": "string",
+      "enum": [
+        "BAIXO",
+        "MEDIO",
+        "ALTO",
+        "CRITICO"
+      ]
+    },
+    "Resolvido": {
+      "type": "boolean"
+    },
+    "CriadoEm": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?(Z|[+-]\\d{2}:\\d{2})?$"
+    },
+    "ResolvidoEm": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?(Z|[+-]\\d{2}:\\d{2})?$"
+    }
+  }
+}
